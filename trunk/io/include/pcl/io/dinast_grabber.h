@@ -40,9 +40,9 @@
 #include <pcl/pcl_config.h>
 #include <pcl/point_types.h>
 
-//#include <libusb-1.0/libusb.h>
+#include <libusb-1.0/libusb.h>
 // dkruglov
-#include <libusb.h>
+//#include <libusb.h>
 
 #include <pcl/io/grabber.h>
 #include <boost/circular_buffer.hpp>

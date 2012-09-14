@@ -112,6 +112,8 @@ pcl::gpu::KinfuTracker::KinfuTracker (const Eigen::Vector3f &volume_size, const 
   
   // initialize cyclical buffer
   cyclical_.initBuffer(tsdf_volume_);
+  tempFlag = false;
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -272,7 +274,7 @@ pcl::gpu::KinfuTracker::allocateBufffers (int rows, int cols)
 bool
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw)
 {  
-  
+  std::cout << "Original algo 2" << std::endl;
   device::Intr intr (fx_, fy_, cx_, cy_);
   {
     //ScopeTime time(">>> Bilateral, pyr-down-all, create-maps-all");
@@ -656,6 +658,7 @@ bool
 //pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 pcl::gpu::KinfuTracker::original_algo(const DepthMap& depth, const View& colors)
 { 
+std::cout << "ORIGINAL ALGO" << std::endl;
   bool res = (*this)(depth);
 
   if (res && color_volume_)
@@ -749,11 +752,18 @@ namespace pcl
   }
 }
 
-//************************************************************************************************************
+//*************************************************************************************************************************************************************OPERATOR:start
 // dkruglov start
 bool 
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& colors)
 { 
+   
+  std::cout << "===========Start of Fovis operator===========" << std::endl;
+  Eigen::Affine3f tempPoseMonitor = getCameraPose();
+  std::cout << "Translation: " << tempPoseMonitor.translation() << std::endl << std::endl;
+  std::cout << "Rotation: " << tempPoseMonitor.linear() << std::endl;
+  std::cout << "=============================================" << std::endl;
+  
   device::Intr intr (fx_, fy_, cx_, cy_);
   {
     device::bilateralFilter (depth_raw, depths_curr_[0]);
@@ -771,40 +781,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
     }
     pcl::device::sync ();
   }
-
-  //can't perform more on first frame
-  /*
-  if (global_time_ == 0)
-  {
-    // dkruglov
-	// TODO: check what will be in case of using FOVIS inition values?
-    Matrix3frm initial_cam_rot = rmats_[0]; //  [Ri|ti] - pos of camera, i.e.
-    Matrix3frm initial_cam_rot_inv = initial_cam_rot.inverse ();
-    Vector3f   initial_cam_trans = tvecs_[0]; //  transform from camera to global coo space for (i-1)th camera pose
-        
-    Mat33&  device_initial_cam_rot = device_cast<Mat33> (initial_cam_rot);
-    Mat33&  device_initial_cam_rot_inv = device_cast<Mat33> (initial_cam_rot_inv);
-    float3& device_initial_cam_trans = device_cast<float3>(initial_cam_trans);
-         
-    float3 device_volume_size = device_cast<const float3>(tsdf_volume_->getSize());
-
-    device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_initial_cam_rot_inv, device_initial_cam_trans, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), getCyclicalBufferStructure (), depthRawScaled_);
-    
-    for (int i = 0; i < LEVELS; ++i)
-      device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], device_initial_cam_rot, device_initial_cam_trans, vmaps_g_prev_[i], nmaps_g_prev_[i]);
-
-
-    if(perform_last_scan_)
-      finished_ = true;
-
-    ++global_time_;
-    return (false);
-  }
-  */
+  
   // dkruglov start
 //************************ FOVIS ****************************************//
 
-	// Prepare data for FOVIS algo
+	// Prepare data for FOVIS algorithm
 
 	// 1 stage - download RGB data from GPU and convert it to grayscale
 	PixelRGB* rgb_color_info = new PixelRGB[size_of_current_rgb_frame_grayscale];
@@ -822,13 +803,13 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
 	unsigned short* gpu_current_frame_data = new unsigned short[size_of_current_detph_frame];	
 	depth_raw.download(gpu_current_frame_data,depth_raw.cols() * sizeof(unsigned short));
 	memset(current_detph_frame,0,size_of_current_detph_frame);
-	// fixme - too time consuming
+	// TODO: decrease time execution
 	for (int i=0;i<size_of_current_detph_frame;i++)
 		current_detph_frame[i] = static_cast<float>(gpu_current_frame_data[i]) * 0.001f;
 	delete[] gpu_current_frame_data;
 
 	fovis_current_depth_frame->setDepthImage(current_detph_frame);
-
+	
 	// firstly we should invoke FOVIS routine for determining camera location
 	visual_odometry_analyzer->processFrame(current_rgb_frame_grayscale,fovis_current_depth_frame);
 		
@@ -838,34 +819,26 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
     // get the motion estimate for this frame to the previous frame.
     Eigen::Isometry3d motion_estimate = visual_odometry_analyzer->getMotionEstimate();
 	
-	// tranform to global coo for ith camera pose
-	//Matrix3frm cam_rot_increment = motion_estimate.rotation().cast<float>();
-	//Vector3f   cam_trans_increment = motion_estimate.translation().cast<float>();
-
-	Matrix3frm cam_rot_increment = cam_to_local.rotation().cast<float>();
-	Vector3f   cam_trans_increment = cam_to_local.translation().cast<float>();
+	// Transform to global coo for ith camera pose
+	Matrix3frm cam_rot_increment = motion_estimate.rotation().cast<float>();
+	Vector3f   cam_trans_increment = motion_estimate.translation().cast<float>();
 
 	Matrix3frm cam_rot_global_prev = rmats_[global_time_ - 1]; //  [Ri|ti] - pos of camera, i.e.
 	Vector3f   cam_trans_global_prev = tvecs_[global_time_ - 1]; //  tranfrom from camera to global coo space for (i-1)th camera pose
 	
-	// comppose
-	//Vector3f   cam_trans_global_curr = cam_rot_increment*cam_trans_global_prev+cam_trans_increment;
-	//Matrix3frm cam_rot_global_curr= cam_rot_increment*cam_rot_global_prev;
-	Vector3f   cam_trans_global_curr = cam_trans_increment;
-	Matrix3frm cam_rot_global_curr= cam_rot_increment;
+	// Compose
+	Vector3f   cam_trans_global_curr = cam_rot_increment*cam_trans_global_prev+cam_trans_increment;
+	Matrix3frm cam_rot_global_curr= cam_rot_increment*cam_rot_global_prev;
+
 	//save tranform
-	
-	cout << "translation :"<< endl;
+	cout << "New translation:"<< endl;
 	cout << cam_trans_global_curr(0) << " "<<cam_trans_global_curr(1) <<" "<< cam_trans_global_curr(2) <<endl;
-	cout << "rotation :" << endl;
+	cout << "New rotation:" << endl;
 	Eigen::Vector3d rpy = motion_estimate.rotation().eulerAngles(0, 1, 2);
 	cout << rpy(0) * 180/M_PI <<" "<< rpy(1) * 180/M_PI <<" "<< rpy(2) * 180/M_PI <<endl;
 	
 	if (global_time_ == 0)
 	{
-		rmats_[0] = cam_rot_global_curr;
-		tvecs_[0] = cam_trans_global_curr;
-
 		// TODO: check what will be in case of using FOVIS inition values?
 		Matrix3frm initial_cam_rot = rmats_[0]; //  [Ri|ti] - pos of camera, i.e.
 		Matrix3frm initial_cam_rot_inv = initial_cam_rot.inverse ();
@@ -886,19 +859,25 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
 			finished_ = true;
 
 		++global_time_;
-		return (false);
+		std::cout << "===========End of Fovis operator (1)========" << std::endl;
+		return (true);
 	}
 
 	rmats_.push_back (cam_rot_global_curr);
 	tvecs_.push_back (cam_trans_global_curr);
+
 //************************ FOVIS ****************************************//
+//************************ CHECK FOR SHIFT ****************************************//
 
   //check for shift
-  bool has_shifted = cyclical_.checkForShift(tsdf_volume_, getCameraPose (), 0.6 * volume_size_, true, perform_last_scan_);
+  bool has_shifted = false; //cyclical_.checkForShift(tsdf_volume_, getCameraPose (), 0.6 * volume_size_, true, perform_last_scan_); // RESTORE THIS ONE. 
 
   if(has_shifted)
     PCL_WARN ("SHIFTING\n");
-    
+
+//************************ CHECK FOR SHIFT ****************************************//
+//************************ GET COORDINATES IN LOCAL ****************************************//
+
   // get NEW local rotation 
   Matrix3frm cam_rot_local_curr_inv = cam_rot_global_curr.inverse ();
   Mat33&  device_cam_rot_local_curr_inv = device_cast<Mat33> (cam_rot_local_curr_inv);
@@ -909,26 +888,28 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
   float3 device_cam_trans_local_curr;
   device_cam_trans_local_curr.x = device_cam_trans_local_curr_tmp.x - (getCyclicalBufferStructure ())->origin_metric.x;
   device_cam_trans_local_curr.y = device_cam_trans_local_curr_tmp.y - (getCyclicalBufferStructure ())->origin_metric.y;
-  device_cam_trans_local_curr.z = device_cam_trans_local_curr_tmp.z - (getCyclicalBufferStructure ())->origin_metric.z;  
-  
-  
-  ///////////////////////////////////////////////////////////////////////////////////////////
-  // Integration check - We do not integrate volume if camera does not move.  
+  device_cam_trans_local_curr.z = device_cam_trans_local_curr_tmp.z - (getCyclicalBufferStructure ())->origin_metric.z;
+
+//************************ GET COORDINATES IN LOCAL ****************************************//  
+//************************ INTEGRATION CHECK ****************************************//  
+
   float rnorm = rodrigues2(cam_rot_global_curr.inverse() * cam_rot_global_prev).norm();
   float tnorm = (cam_trans_global_curr - cam_trans_global_prev).norm();    
   const float alpha = 1.f;
   bool integrate = (rnorm + alpha * tnorm)/2 >= integration_metric_threshold_;
 
-  ///////////////////////////////////////////////////////////////////////////////////////////
-  // Volume integration
+//************************ INTEGRATION CHECK ****************************************//  
+//************************ VOLUMETRIC INTEGRATION ****************************************//  
+
   float3 device_volume_size = device_cast<const float3> (tsdf_volume_->getSize());
   if (integrate)
   {
     integrateTsdfVolume (depth_raw, intr, device_volume_size, device_cam_rot_local_curr_inv, device_cam_trans_local_curr, tsdf_volume_->getTsdfTruncDist (), tsdf_volume_->data (), getCyclicalBufferStructure (), depthRawScaled_);
   }
 
-  ///////////////////////////////////////////////////////////////////////////////////////////
-  // Ray casting
+//************************ VOLUMETRIC INTEGRATION ****************************************//  
+//************************ RAYCASTING ****************************************//  
+
   {          
     raycast (intr, device_cam_rot_local_curr, device_cam_trans_local_curr, tsdf_volume_->getTsdfTruncDist (), device_volume_size, tsdf_volume_->data (), getCyclicalBufferStructure (), vmaps_g_prev_[0], nmaps_g_prev_[0]);
     
@@ -948,6 +929,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
     }
     pcl::device::sync ();
   }
+
+//************************ RAYCASTING ****************************************//  
 
   if(has_shifted && perform_last_scan_)
     extractAndMeshWorld ();
@@ -969,9 +952,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
     device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
         colors, device_volume_size, color_volume_->data(), color_volume_->getMaxWeight());
   }
-
+  std::cout << "===========End of Fovis operator===========" << std::endl;
   return (true);
+
 }
+//*************************************************************************************************************************************************************OPERATOR:end
 
 void pcl::gpu::KinfuTracker::Init_Fovis(fovis::CameraIntrinsicsParameters* camera_rgb_params,fovis::CameraIntrinsicsParameters* camera_depth_params)
 {
