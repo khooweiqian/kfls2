@@ -55,7 +55,8 @@
 #include <pcl/io/ply_io.h>
 
 // dkruglov
-#include <fovis.hpp>
+//#include <fovis.hpp>
+#include <fovis/fovis.hpp>
 using namespace fovis;
 
 namespace pcl
@@ -323,6 +324,8 @@ namespace pcl
 
         /** \brief Size of the TSDF volume in meters. */
         float volume_size_;
+        
+        bool tempFlag;
 
 		//dkruglov start
         uint8_t* current_rgb_frame_grayscale;

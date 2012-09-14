@@ -30,14 +30,14 @@ if(OPENNI_FOUND)
 	source_group("Source Files" FILES ${srcs} )
 
 	PCL_ADD_EXECUTABLE(${the_target} ${SUBSYS_NAME} ${srcs} ${hdrs})
-	target_link_libraries(${the_target} pcl_common pcl_io ${OPENNI_LIBRARIES} pcl_visualization pcl_gpu_kinfu_large_scale pcl_octree)  
+	target_link_libraries(${the_target} pcl_common pcl_io ${OPENNI_LIBRARIES} pcl_visualization pcl_gpu_kinfu_large_scale pcl_octree fovis)  
   
   ## STANDALONE MARCHING CUBES
 	set(the_target pcl_kinfu_largeScale_mesh_output)
 	set(srcs process_kinfu_large_scale_output.cpp)
 
 	PCL_ADD_EXECUTABLE(${the_target} ${SUBSYS_NAME} ${srcs} ${hdrs})
-	target_link_libraries(${the_target} pcl_common pcl_io ${OPENNI_LIBRARIES} pcl_visualization pcl_gpu_kinfu_large_scale pcl_filters)
+	target_link_libraries(${the_target} pcl_common pcl_io ${OPENNI_LIBRARIES} pcl_visualization pcl_gpu_kinfu_large_scale pcl_filters fovis)
         
 	## WORLD MODEL TEST
 	#set(the_target world_model_test)

@@ -788,12 +788,11 @@ struct KinFuLSApp
 	void source_cb3(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr & DC3)
 	{
 		{
-            //std::cout << "Giving colors1\n";
+
 			boost::mutex::scoped_try_lock lock(data_ready_mutex_);
-			std::cout << lock << std::endl;
 			if (exit_ || !lock)
 				return;
-            //std::cout << "Giving colors2\n";
+
 			int width  = DC3->width;
 			int height = DC3->height;
 			depth_.cols = width;
@@ -809,7 +808,7 @@ struct KinFuLSApp
 			unsigned char *rgb    = (unsigned char *)  &source_image_data_[0];
 			unsigned short *depth = (unsigned short *) &source_depth_data_[0];  
 
-            //std::cout << "Giving colors3\n";
+
 			for (int i=0; i<width*height; i++) {
 				PointXYZRGBA pt = DC3->at(i);
 				rgb[3*i +0] = pt.r;
@@ -817,7 +816,7 @@ struct KinFuLSApp
 				rgb[3*i +2] = pt.b;
 				depth[i]    = pt.z/0.001;
 			}
-            //std::cout << "Giving colors4\n";
+
 			rgb24_.data = &source_image_data_[0];   
 			depth_.data = &source_depth_data_[0];      
 		}	
