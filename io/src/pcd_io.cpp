@@ -1120,7 +1120,7 @@ pcl::PCDReader::read (const std::string &file_name, sensor_msgs::PointCloud2 &cl
       unsigned int compressed_size, uncompressed_size;
       memcpy (&compressed_size, &map[data_idx + 0], sizeof (unsigned int));
       memcpy (&uncompressed_size, &map[data_idx + 4], sizeof (unsigned int));
-      PCL_DEBUG ("[pcl::PCDReader::read] Read a binary compressed file with %u bytes compressed and %u original.\n", compressed_size, uncompressed_size);
+      //PCL_DEBUG ("[pcl::PCDReader::read] Read a binary compressed file with %u bytes compressed and %u original.\n", compressed_size, uncompressed_size);
       // For all those weird situations where the compressed data is actually LARGER than the uncompressed one
       // (we really ought to check this in the compressor and copy the original data in those cases)
       if (data_size < compressed_size)
