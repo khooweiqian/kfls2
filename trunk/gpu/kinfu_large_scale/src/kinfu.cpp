@@ -873,7 +873,13 @@ pcl::gpu::KinfuTracker::getTransformFOVIS(const DepthMap& depth_raw, const View&
 	memset(current_detph_frame,0,size_of_current_detph_frame);
 	// TODO: decrease time execution
 	for (int i=0;i<size_of_current_detph_frame;i++)
-		current_detph_frame[i] = static_cast<float>(gpu_current_frame_data[i]) * 0.001f;
+	{
+		if (gpu_current_frame_data[i]!=0)
+			current_detph_frame[i] = static_cast<float>(gpu_current_frame_data[i]) * 0.001f;
+		else
+			current_detph_frame[i] = NAN;
+		// current_detph_frame[i] = static_cast<float>(gpu_current_frame_data[i]) * 0.001f;
+	}
 	delete[] gpu_current_frame_data;
 
 	fovis_current_depth_frame->setDepthImage(current_detph_frame);
