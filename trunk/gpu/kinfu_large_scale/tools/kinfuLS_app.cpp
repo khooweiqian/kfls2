@@ -215,7 +215,6 @@ typename PointCloud<MergedT>::Ptr merge(const PointCloud<PointT>& points, const 
   return merged_ptr;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 boost::shared_ptr<pcl::PolygonMesh> convertToMesh(const DeviceArray<PointXYZ>& triangles)
