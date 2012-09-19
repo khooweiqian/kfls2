@@ -72,7 +72,7 @@ namespace pcl
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-pcl::gpu::KinfuTracker::KinfuTracker (const Eigen::Vector3f &volume_size, const float shiftingDistance, int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), cyclical_( DISTANCE_THRESHOLD, pcl::device::VOLUME_SIZE, VOLUME_X), perform_last_scan_ (false), finished_(false)
+pcl::gpu::KinfuTracker::KinfuTracker (const Eigen::Vector3f &volume_size, const float shiftingDistance, bool useVisualOdometry, int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), cyclical_( DISTANCE_THRESHOLD, pcl::device::VOLUME_SIZE, VOLUME_X), perform_last_scan_ (false), finished_(false)
 {
   //const Vector3f volume_size = Vector3f::Constant (VOLUME_SIZE);
   const Vector3i volume_resolution (VOLUME_X, VOLUME_Y, VOLUME_Z);
@@ -112,7 +112,8 @@ pcl::gpu::KinfuTracker::KinfuTracker (const Eigen::Vector3f &volume_size, const 
   
   // initialize cyclical buffer
   cyclical_.initBuffer(tsdf_volume_);
-  tempFlag = false;
+  use_visual_odometry_ = useVisualOdometry;//delete this one later
+  doNothing = false; //delete this one later
   
 }
 
@@ -819,7 +820,7 @@ pcl::gpu::KinfuTracker::getTransformICP(device::Intr intr, Vector3f cam_trans_gl
         //checking nullspace
         double det = A.determinant ();
           
-		if ( fabs (det) < 1e10 || pcl_isnan (det) )
+		if ( fabs (det) < 1e-15 || pcl_isnan (det) )
         {
           if (pcl_isnan (det)) cout << "qnan" << endl;
           
@@ -851,6 +852,10 @@ pcl::gpu::KinfuTracker::getTransformICP(device::Intr intr, Vector3f cam_trans_gl
 bool 
 pcl::gpu::KinfuTracker::getTransformFOVIS(const DepthMap& depth_raw, const View& colors, device::Intr intr, Vector3f cam_trans_global_prev, Matrix3frm cam_rot_global_prev, Vector3f& cam_trans_global_curr, Matrix3frm& cam_rot_global_curr)
 {	
+	
+	if(doNothing)
+	  return (false);
+	
 	//~ std::cout << "\t[KINFU|getTransformFOVIS] Start transform estimation\n";
 	bool estimationSuccessful = true;	
 
@@ -924,7 +929,7 @@ pcl::gpu::KinfuTracker::getTransformFOVIS(const DepthMap& depth_raw, const View&
 bool 
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& colors)
 { 
-   std::cout << "Iteration " << global_time_ << std::endl;
+   //std::cout << "Iteration " << global_time_ << std::endl;
   device::Intr intr (fx_, fy_, cx_, cy_);
   {
     device::bilateralFilter (depth_raw, depths_curr_[0]);
@@ -977,30 +982,31 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, const View& color
 
     Vector3f   cam_trans_global_curr;
 	Matrix3frm cam_rot_global_curr;
-    //bool gotTransform = getTransformFOVIS(depth_raw, colors, intr, cam_trans_global_prev, cam_rot_global_prev, cam_trans_global_curr, cam_rot_global_curr);
-    bool gotTransform = getTransformICP(intr, cam_trans_global_prev, cam_rot_global_prev, cam_trans_global_curr, cam_rot_global_curr);
+    
+    bool gotTransform = false;
+    if (use_visual_odometry_)
+      gotTransform = getTransformFOVIS(depth_raw, colors, intr, cam_trans_global_prev, cam_rot_global_prev, cam_trans_global_curr, cam_rot_global_curr);
+    else
+      gotTransform = getTransformICP(intr, cam_trans_global_prev, cam_rot_global_prev, cam_trans_global_curr, cam_rot_global_curr);
 /////////////////////////Hybrid nature    
     if(gotTransform)
     {
-		std::cout << "[KINFUTRACKER| Hybrid operator "<< global_time_<< "] Got pose from ICP" << std::endl;
+		//std::cout << "[KINFUTRACKER| Hybrid operator "<< global_time_<< "] Got pose from ICP" << std::endl;
+		std::cout << "[KINFUTRACKER| Hybrid operator "<< global_time_<< "] Got camera pose \n" << std::endl;
 	}
-    else
-    {
-	  std::cout << "[KINFUTRACKER| Hybrid operator"<< global_time_<< "] ICP failed, attempting to get pose with FOVIS" << std::endl;	
-      //gotTransform = getTransformICP(intr, cam_trans_global_prev, cam_rot_global_prev, cam_trans_global_curr, cam_rot_global_curr);
-      gotTransform = getTransformFOVIS(depth_raw, colors, intr, cam_trans_global_prev, cam_rot_global_prev, cam_trans_global_curr, cam_rot_global_curr);
-      if(gotTransform)
-        std::cout << "[KINFUTRACKER| Hybrid operator"<< global_time_<< "] Got pose from FOVIS" << std::endl;
-      else
-        std::cout << "[KINFUTRACKER| Hybrid operator"<< global_time_<< "] Failed to get pose" << std::endl;
-        // do something else
-    }
 ///////////////////////////////////////    
+
+    std::cout << "Rotation:\n" << cam_rot_global_curr << "\n Translation: \n" << cam_trans_global_curr << std::endl; 
+
     if (gotTransform)
     {	
 	  rmats_.push_back (cam_rot_global_curr);
 	  tvecs_.push_back (cam_trans_global_curr);
     }
+    else
+    {
+		doNothing = true;
+	}
     
 
 //************************ INTEGRATION ****************************************//

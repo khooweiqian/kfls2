@@ -70,7 +70,7 @@ namespace pcl
     const float FOCAL_LENGTH = 575.816f;
   
     const float VOLUME_SIZE = 3.0f; // physical size represented by the TSDF volume. In meters
-    const float DISTANCE_THRESHOLD = 0.7f; // when the camera target point is farther than DISTANCE_THRESHOLD from the current cube's center, shifting occurs. In meters
+    const float DISTANCE_THRESHOLD = 0.5f; // when the camera target point is farther than DISTANCE_THRESHOLD from the current cube's center, shifting occurs. In meters
     const int SNAPSHOT_RATE = 45; // every 45 frames an RGB snapshot will be saved. -et parameter is needed when calling Kinfu Large Scale in command line.
 
 

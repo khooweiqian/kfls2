@@ -96,7 +96,7 @@ namespace pcl
           * \param[in] rows height of depth image
           * \param[in] cols width of depth image
           */
-        KinfuTracker (const Eigen::Vector3f &volumeSize, const float shiftingDistance, int rows = 480, int cols = 640);
+        KinfuTracker (const Eigen::Vector3f &volumeSize, const float shiftingDistance, bool useVisualOdometry = false, int rows = 480, int cols = 640);
 
         /** \brief Sets Depth camera intrinsics
           * \param[in] fx focal length x 
@@ -325,7 +325,7 @@ namespace pcl
         /** \brief Size of the TSDF volume in meters. */
         float volume_size_;
         
-        bool tempFlag;
+        bool use_visual_odometry_;
 
 		//dkruglov start
         uint8_t* current_rgb_frame_grayscale;
@@ -342,6 +342,8 @@ namespace pcl
 		
 		/** \brief Get the camera pose incremental estimation using FOVIS. */
 		bool getTransformFOVIS(const DepthMap& depth_raw, const View& colors, device::Intr intr, Vector3f cam_trans_global_prev, Matrix3frm cam_rot_global_prev, Vector3f& cam_trans_global_curr, Matrix3frm& cam_rot_global_curr);
+		
+		bool doNothing;
 		
 		// dkruglov end
       public:
