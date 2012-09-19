@@ -336,6 +336,13 @@ namespace pcl
 		
 		fovis::VisualOdometry* visual_odometry_analyzer;
 		fovis::DepthImage* fovis_current_depth_frame;
+		
+		/** \brief Get the camera pose incremental estimation using FOVIS. */
+		bool getTransformICP(device::Intr intr, Vector3f cam_trans_global_prev,Matrix3frm cam_rot_global_prev,Vector3f& cam_trans_global_curr, Matrix3frm& cam_rot_global_curr);
+		
+		/** \brief Get the camera pose incremental estimation using FOVIS. */
+		bool getTransformFOVIS(const DepthMap& depth_raw, const View& colors, device::Intr intr, Vector3f cam_trans_global_prev, Matrix3frm cam_rot_global_prev, Vector3f& cam_trans_global_curr, Matrix3frm& cam_rot_global_curr);
+		
 		// dkruglov end
       public:
 		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
