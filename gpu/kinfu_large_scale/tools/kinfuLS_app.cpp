@@ -683,7 +683,8 @@ struct KinFuLSApp
         else
 		{
 			
-          has_image = (*kinfu_) (depth_device_);
+          //has_image = (*kinfu_) (depth_device_);
+          has_image = (*kinfu_) (depth_device_, image_view_.colors_device_);
 		}
       }
 //      image_view_.showDepth (depth_);

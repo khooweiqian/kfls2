@@ -337,13 +337,38 @@ namespace pcl
 		fovis::VisualOdometry* visual_odometry_analyzer;
 		fovis::DepthImage* fovis_current_depth_frame;
 		
-		/** \brief Get the camera pose incremental estimation using FOVIS. */
-		bool getTransformICP(device::Intr intr, Vector3f cam_trans_global_prev,Matrix3frm cam_rot_global_prev,Vector3f& cam_trans_global_curr, Matrix3frm& cam_rot_global_curr);
+    	/** \brief Get the camera pose incremental estimation using FOVIS.
+		 *  
+		 *  param[in] depth_raw Raw depth map
+		 *  param[in] colors View(DeviceArray2D) array with color information
+		 *  param[in] intr Camera intrinsics used in KinFu
+		 *  param[in] cam_trans_global_prev Camera Translation Vector for t = i-1
+		 *  param[in] cam_rot_global_prev Camera Rotation Matrix for t = i-1
+		 *  param[out] cam_trans_estimation Camera translation vector incremental estimation for t = i
+		 *  param[out] cam_rot_estimation Camera rotation matrix incremental estimation for t = i
+		 * 
+		 * */
+		bool getTransformFOVIS(const DepthMap& depth_raw, const View& colors, device::Intr intr, Vector3f cam_trans_global_prev, Matrix3frm cam_rot_global_prev, Vector3f& cam_trans_estimation, Matrix3frm& cam_rot_estimation);
 		
-		/** \brief Get the camera pose incremental estimation using FOVIS. */
-		bool getTransformFOVIS(const DepthMap& depth_raw, const View& colors, device::Intr intr, Vector3f cam_trans_global_prev, Matrix3frm cam_rot_global_prev, Vector3f& cam_trans_global_curr, Matrix3frm& cam_rot_global_curr);
+		/** \brief Get the camera pose incremental estimation using ICP.
+		 *  
+		 *  param[in] intr Camera intrinsics used in KinFu
+		 *  param[in] cam_trans_global_prev Camera Translation Vector for t = i-1
+		 *  param[in] cam_rot_global_prev Camera Rotation Matrix for t = i-1
+		 *  param[out] cam_trans_estimation Camera translation vector incremental estimation for t = i
+		 *  param[out] cam_rot_estimation Camera rotation matrix incremental estimation for t = i
+		 * 
+		 * */
+		bool getTransformICP(device::Intr intr, Vector3f cam_trans_global_prev, Matrix3frm cam_rot_global_prev, Vector3f& cam_trans_estimation, Matrix3frm& cam_rot_estimation);
 		
-		bool doNothing;
+		/** \brief Get the Offset between two camera poses. The input is the rotation and translation of the camera pose, regardless of the method used to estimate it. Rotation one corresponds to translation one, as rotation two corresponds to translation two.  Both transforms are printed, as well as the calculated offfset between them.
+		 * 
+		 *  param[in] cam_trans_global_curr_one Camera Translation Vector for method one. 
+		 *  param[in] cam_rot_global_curr_one Camera Rotation Matrix for method one
+		 *  param[in] cam_trans_global_curr_two Camera Translation Vector for t = i
+		 *  param[in] cam_rot_global_curr_two Camera Rotation Matrix for t = i
+		 * */
+		void getOffsetBetweenCameraPoses(Vector3f cam_trans_global_curr_one, Matrix3frm cam_rot_global_curr_one, Vector3f cam_trans_global_curr_two, Matrix3frm cam_rot_global_curr_two);
 		
 		// dkruglov end
       public:
